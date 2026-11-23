@@ -2,7 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://tzkxujrjrhyqxgzytaex.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BrNnF8XCshRm1NmEYvQphg_hcNIJhQV";
-
+const PUSH_PUBLIC_KEY = "BCBGaB_jdvL9EHTS5vXlg3cIXMsEpKSdlxjTJobbgUNW2ZkQMOOPSJVJRvZoT1MsULrvFpBDLz3U_tb27tfbyJA";
 // Каждый браузер/устройство хранит собственную локальную сессию.
 // Это позволяет входить в один аккаунт с нескольких устройств одновременно.
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
