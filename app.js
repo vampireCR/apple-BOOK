@@ -186,8 +186,12 @@ function showPage(name) {
   if (name === "friends") loadFriends();
   if (name === "messages") loadMessageContacts();
   if (name === "profile") renderProfile();
-  if (name === "admin") loadAdmin();
-  if (name === "settings") fillSettings();
+if (name === "admin") loadAdmin();
+
+if (name === "settings") {
+  fillSettings();
+  ensurePushControls();
+}
 }
 
 document.querySelectorAll(".nav-btn[data-page]").forEach(button => {
