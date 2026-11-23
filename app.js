@@ -2036,7 +2036,185 @@ staffBonusButton.className = "secondary";
 staffBonusButton.textContent = "Получить ежедневный бонус персонала";
 staffBonusButton.hidden = true;
 $("claimDailyTokens")?.insertAdjacentElement("afterend", staffBonusButton);
+// =====================================
+// PUSH-УВЕДОМЛЕНИЯ THEAPPLEBOOK
+// =====================================
 
+const PUSH_PUBLIC_KEY =
+  "BNF150L3bzGkOZ1NDQiSPv1AgMgD9TXlIPZ5XgF-B16fKVkwPMBUHUw2M2xoWXSq_m4id8VHwUbreskWmTUyBP0";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = atob(base64);
+  const output = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    output[i] = rawData.charCodeAt(i);
+  }
+
+  return output;
+}
+
+async function getPushRegistration() {
+  if (!("serviceWorker" in navigator)) {
+    throw new Error("Браузер не поддерживает Service Worker.");
+  }
+
+  return await navigator.serviceWorker.register("./sw.js", {
+    scope: "./"
+  });
+}
+
+function ensurePushControls() {
+  const settingsPage = $("page-settings");
+
+  if (!settingsPage || $("pushSettingsPanel")) return;
+
+  const panel = document.createElement("section");
+  panel.id = "pushSettingsPanel";
+  panel.className = "panel pad";
+
+  panel.innerHTML = `
+    <h3>🔔 Push-уведомления</h3>
+
+    <p class="muted">
+      Получай уведомления TheAppleBook даже тогда,
+      когда сайт закрыт.
+    </p>
+
+    <button type="button" id="enablePushButton" class="primary">
+      Включить уведомления
+    </button>
+
+    <button type="button" id="disablePushButton" class="secondary hidden">
+      Отключить уведомления
+    </button>
+
+    <p id="pushSettingsStatus" class="muted" aria-live="polite"></p>
+  `;
+
+  settingsPage.appendChild(panel);
+
+  $("enablePushButton").addEventListener("click", enablePushNotifications);
+  $("disablePushButton").addEventListener("click", disablePushNotifications);
+
+  refreshPushStatus();
+}
+
+async function refreshPushStatus() {
+  if (!currentUser || !("serviceWorker" in navigator)) return;
+
+  try {
+    const registration = await getPushRegistration();
+    const subscription = await registration.pushManager.getSubscription();
+
+    $("enablePushButton")?.classList.toggle("hidden", !!subscription);
+    $("disablePushButton")?.classList.toggle("hidden", !subscription);
+
+    if ($("pushSettingsStatus")) {
+      $("pushSettingsStatus").textContent = subscription
+        ? "Уведомления включены на этом устройстве."
+        : "Уведомления пока отключены.";
+    }
+  } catch (error) {
+    console.error("Push status error:", error);
+  }
+}
+
+async function enablePushNotifications() {
+  if (!currentUser) return;
+
+  const button = $("enablePushButton");
+  const status = $("pushSettingsStatus");
+
+  button.disabled = true;
+  status.textContent = "Подключаю уведомления...";
+
+  try {
+    if (!("Notification" in window)) {
+      throw new Error("Браузер не поддерживает уведомления.");
+    }
+
+    const permission = await Notification.requestPermission();
+
+    if (permission !== "granted") {
+      throw new Error("Разрешение на уведомления не предоставлено.");
+    }
+
+    const registration = await getPushRegistration();
+
+    let subscription = await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(PUSH_PUBLIC_KEY)
+      });
+    }
+
+    const subscriptionData = subscription.toJSON();
+
+    const { error } = await supabase.rpc("save_push_subscription", {
+      p_endpoint: subscription.endpoint,
+      p_p256dh: subscriptionData.keys?.p256dh,
+      p_auth_key: subscriptionData.keys?.auth,
+      p_user_agent: navigator.userAgent
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    status.textContent = "Уведомления успешно включены!";
+    await refreshPushStatus();
+
+  } catch (error) {
+    console.error("Push subscription error:", error);
+    status.textContent = "Ошибка: " + (error.message || "не удалось подключить уведомления.");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function disablePushNotifications() {
+  if (!currentUser) return;
+
+  const button = $("disablePushButton");
+  const status = $("pushSettingsStatus");
+
+  button.disabled = true;
+
+  try {
+    const registration = await getPushRegistration();
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+      await refreshPushStatus();
+      return;
+    }
+
+    const { error } = await supabase.rpc("delete_push_subscription", {
+      p_endpoint: subscription.endpoint
+    });
+
+    if (error) throw error;
+
+    await subscription.unsubscribe();
+
+    status.textContent = "Уведомления отключены.";
+    await refreshPushStatus();
+
+  } catch (error) {
+    console.error("Push unsubscribe error:", error);
+    status.textContent = "Ошибка: " + (error.message || "не удалось отключить уведомления.");
+  } finally {
+    button.disabled = false;
+  }
+}
 function updateStaffBonusVisibility() {
   staffBonusButton.hidden = !currentProfile || !isStaff(currentProfile.role);
 }
