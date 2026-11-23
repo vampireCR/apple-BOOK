@@ -97,3 +97,66 @@ self.addEventListener("fetch", event => {
     }
   })());
 });
+// =====================================
+// PUSH NOTIFICATIONS
+// =====================================
+
+self.addEventListener("push", event => {
+  let data = {};
+
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {
+      body: event.data ? event.data.text() : "У вас новое уведомление."
+    };
+  }
+
+  const title = data.title || "TheAppleBook";
+
+  const options = {
+    body: data.body || "У вас новое уведомление.",
+    icon: "./icons/icon-192.png",
+    badge: "./icons/icon-192.png",
+    data: {
+      url: data.url || "./"
+    },
+    tag: data.tag || "theapplebook-notification"
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+
+  event.waitUntil((async () => {
+    const target = new URL(
+      event.notification.data?.url || "./",
+      self.registration.scope
+    );
+
+    if (
+      target.origin !== self.location.origin ||
+      !target.href.startsWith(self.registration.scope)
+    ) {
+      return;
+    }
+
+    const clientsList = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true
+    });
+
+    for (const client of clientsList) {
+      if (client.url.startsWith(self.registration.scope)) {
+        await client.navigate(target.href);
+        return client.focus();
+      }
+    }
+
+    return self.clients.openWindow(target.href);
+  })());
+});
