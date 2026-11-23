@@ -2234,3 +2234,145 @@ staffBonusButton.addEventListener("click", async () => {
   staffBonusButton.disabled = false;
   if (!error) await loadGiftShop();
 });
+// =====================================
+// PUSH NOTIFICATIONS
+// =====================================
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = atob(base64);
+  return Uint8Array.from(
+    [...rawData].map(char => char.charCodeAt(0))
+  );
+}
+
+function ensurePushControls() {
+  const page = $("page-settings");
+
+  if (!page || $("push-settings")) return;
+
+  const panel = document.createElement("div");
+  panel.id = "push-settings";
+  panel.className = "panel pad";
+
+  panel.innerHTML = `
+    <h3>Push-уведомления</h3>
+    <p>Получайте уведомления, даже когда TheAppleBook закрыт.</p>
+
+    <button id="push-enable" class="btn">
+      Включить уведомления
+    </button>
+
+    <button id="push-disable" class="btn" style="display:none">
+      Отключить уведомления
+    </button>
+
+    <p id="push-status">Проверка...</p>
+  `;
+
+  page.appendChild(panel);
+
+  $("push-enable").onclick = enablePush;
+  $("push-disable").onclick = disablePush;
+
+  updatePushStatus();
+}
+
+async function updatePushStatus() {
+  const status = $("push-status");
+  const enable = $("push-enable");
+  const disable = $("push-disable");
+
+  if (!status || !enable || !disable) return;
+
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    status.textContent = "Браузер не поддерживает Push.";
+    enable.disabled = true;
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register("./sw.js");
+    const subscription = await registration.pushManager.getSubscription();
+
+    enable.style.display = subscription ? "none" : "inline-block";
+    disable.style.display = subscription ? "inline-block" : "none";
+
+    status.textContent = subscription
+      ? "Уведомления включены."
+      : "Уведомления отключены.";
+  } catch (error) {
+    status.textContent = "Ошибка: " + error.message;
+  }
+}
+
+async function enablePush() {
+  const status = $("push-status");
+
+  try {
+    if (!("Notification" in window)) {
+      throw new Error("Браузер не поддерживает уведомления.");
+    }
+
+    const permission = await Notification.requestPermission();
+
+    if (permission !== "granted") {
+      throw new Error("Разрешение на уведомления не предоставлено.");
+    }
+
+    const registration = await navigator.serviceWorker.register("./sw.js");
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(PUSH_PUBLIC_KEY)
+    });
+
+    const data = subscription.toJSON();
+
+    const { error } = await supabase.rpc("save_push_subscription", {
+      p_endpoint: data.endpoint,
+      p_p256dh: data.keys.p256dh,
+      p_auth_key: data.keys.auth,
+      p_user_agent: navigator.userAgent
+    });
+
+    if (error) throw error;
+
+    status.textContent = "Push-уведомления успешно включены!";
+    await updatePushStatus();
+
+  } catch (error) {
+    status.textContent = "Ошибка: " + error.message;
+    console.error("Push error:", error);
+  }
+}
+
+async function disablePush() {
+  const status = $("push-status");
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (subscription) {
+      const { error } = await supabase.rpc("delete_push_subscription", {
+        p_endpoint: subscription.endpoint
+      });
+
+      if (error) throw error;
+
+      await subscription.unsubscribe();
+    }
+
+    status.textContent = "Push-уведомления отключены.";
+    await updatePushStatus();
+
+  } catch (error) {
+    status.textContent = "Ошибка: " + error.message;
+    console.error("Push error:", error);
+  }
+}
