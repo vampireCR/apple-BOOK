@@ -1,353 +1,319 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { 
-  Menu, X, Search, Users, MessageSquare, Bell, Home, 
-  MessageSquareMore, Phone, Video, LogOut, User, 
-  Image as ImageIcon, Mic, Send, MoreHorizontal, Share
-} from 'lucide-react';
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import "./www/app.js";
 
-const SUPABASE_URL = "https://tzkxujrjrhyqxgzytaex.supabase.co";
-const SUPABASE_KEY = "sb_publishable_BrNnF8XCshRm1NmEYvQphg_hcNIJhQV";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+(() => {
+  "use strict";
 
-// ... [Компоненты UI здесь] ...
+  const STYLE = `
+    .apple-menu-button {
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line, #ddd);
+      border-radius: 12px;
+      background: var(--card, #fff);
+      color: inherit;
+      font-size: 23px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
 
-const App = () => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [mobileMenu, setMobileMenu] = useState(false);
-  const [sessionUser, setSessionUser] = useState(null);
+    .apple-menu-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.48);
+      z-index: 900;
+      opacity: 0;
+      visibility: hidden;
+      transition: .2s;
+    }
 
-  // Авторизация
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSessionUser(session?.user);
-      if(session?.user) setUser(session.user);
-    });
-    
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setSessionUser(session?.user);
-      if(session?.user) setUser(session.user);
-    });
-  }, []);
+    .apple-menu-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSessionUser(null);
-    setUser(null);
-  };
+    .sidebar {
+      transition: transform .25s ease;
+    }
 
-  return (
-    <div>
-      {/* Скрытые связи с Supabase для контекста */}
-      <supabase-context.Provider value={{user: sessionUser}}>
-        
-        <BrowserRouter>
-          {/* Верхняя панель */}
-          <header className="topbar">
-            <div className="brand">
-              apple-<span>BOOK</span>
+    .sidebar.apple-menu-open {
+      transform: translateX(0);
+      z-index: 1000;
+    }
+
+    .apple-extra-page {
+      display: none;
+    }
+
+    .apple-extra-page.active {
+      display: block;
+    }
+
+    .apple-extra-page .panel {
+      margin-bottom: 16px;
+    }
+
+    .apple-extra-icon {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: rgba(100,27,43,.1);
+      font-size: 24px;
+    }
+
+    .apple-extra-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      border: 1px solid var(--line, #ddd);
+      border-radius: 14px;
+      margin-top: 12px;
+    }
+
+    .apple-extra-card h3 {
+      margin: 0 0 5px;
+    }
+
+    .apple-extra-card p {
+      margin: 0;
+    }
+
+    .apple-back-button {
+      display: none;
+    }
+
+    @media(max-width: 850px) {
+      .apple-menu-button {
+        display: flex;
+      }
+
+      .sidebar {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: min(310px, 85vw);
+        max-width: 310px;
+        overflow-y: auto;
+        transform: translateX(-110%);
+        z-index: 1000;
+        background: var(--bg, #fff);
+        padding: 15px;
+        box-shadow: 12px 0 35px rgba(0,0,0,.16);
+      }
+
+      .sidebar.apple-menu-open {
+        transform: translateX(0);
+      }
+
+      .apple-back-button.visible {
+        display: inline-flex;
+      }
+
+      .messages-layout {
+        grid-template-columns: 1fr !important;
+      }
+
+      .messages-contacts {
+        width: 100%;
+      }
+
+      .chat-panel {
+        min-width: 0;
+      }
+    }
+
+    @media(min-width: 851px) {
+      .apple-menu-button {
+        display: flex;
+      }
+
+      .sidebar.apple-menu-collapsed {
+        display: none;
+      }
+    }
+  `;
+
+  function init() {
+    if (document.getElementById("appleNavigationStyle")) return;
+
+    const style = document.createElement("style");
+    style.id = "appleNavigationStyle";
+    style.textContent = STYLE;
+    document.head.appendChild(style);
+
+    const topbar = document.querySelector(".topbar");
+    const sidebar = document.querySelector(".sidebar");
+    const appView = document.getElementById("appView");
+    const maincol = document.querySelector(".maincol");
+
+    if (!topbar || !sidebar || !maincol) return;
+
+    // Кнопка меню
+    const menuButton = document.createElement("button");
+    menuButton.type = "button";
+    menuButton.className = "apple-menu-button";
+    menuButton.innerHTML = "☰";
+    menuButton.setAttribute("aria-label", "Открыть меню");
+
+    topbar.prepend(menuButton);
+
+    // Затемнение фона
+    const overlay = document.createElement("div");
+    overlay.className = "apple-menu-overlay";
+    document.body.appendChild(overlay);
+
+    function closeMenu() {
+      sidebar.classList.remove("apple-menu-open");
+      overlay.classList.remove("visible");
+      menuButton.innerHTML = "☰";
+    }
+
+    function toggleMenu() {
+      const opened = sidebar.classList.toggle("apple-menu-open");
+      overlay.classList.toggle("visible", opened);
+      menuButton.innerHTML = opened ? "✕" : "☰";
+    }
+
+    menuButton.addEventListener("click", toggleMenu);
+    overlay.addEventListener("click", closeMenu);
+
+    // Дополнительные страницы
+    const extraPages = [
+      {
+        id: "groups",
+        icon: "👥",
+        title: "Группы",
+        description: "Общение с несколькими участниками в одном пространстве."
+      },
+      {
+        id: "channels",
+        icon: "📢",
+        title: "Каналы",
+        description: "Публичные и приватные сообщества и публикации."
+      },
+      {
+        id: "calls",
+        icon: "📞",
+        title: "Звонки",
+        description: "Раздел голосовой и видеосвязи."
+      }
+    ];
+
+    for (const item of extraPages) {
+      const page = document.createElement("section");
+      page.id = "page-" + item.id;
+      page.className = "page apple-extra-page";
+
+      page.innerHTML = `
+        <div class="panel pad">
+          <div class="apple-extra-icon">${item.icon}</div>
+          <h1>${item.title}</h1>
+          <p class="muted">${item.description}</p>
+          <div class="apple-extra-card">
+            <div>
+              <h3>${item.title}</h3>
+              <p class="muted">
+                Интерфейс раздела подготовлен.
+                Для подключения полноценной работы необходима
+                интеграция с соответствующими таблицами Supabase.
+              </p>
             </div>
-            {sessionUser ? (
-              <div className="top-user">
-                <img src={sessionUser.user_metadata?.avatar || "https://via.placeholder.com/40"} className="avatar-small" />
-                <span>{sessionUser.email || "User"}</span>
-              </div>
-            ) : null}
-            <button className="header-btn" onClick={() => setMobileMenu(true)}>
-               <Menu size={24} />
-            </button>
-          </header>
+          </div>
+        </div>
+      `;
 
-          {/* Основное меню (Навигация) */}
-          {sessionUser ? (
-            <nav className="sidebar">
-              <button className="close-btn" onClick={() => setMobileMenu(false)}><X size={20}/></button>
-              <ul className="nav-list">
-                <li><Link to={`/feed`} className={`nav-btn active`}><Home size={18}/><span>Лента</span></Link></li>
-                <li><Link to={`/messages`} className={`nav-btn`}><MessageSquare size={18}/><span>Чаты</span></Link></li>
-                <li><Link to={`/friends`} className={`nav-btn`}><Users size={18}/><span>Друзья</span></Link></li>
-                <li><Link to={`/groups`} className={`nav-btn`}><Users2 size={18}/><span>Группы</span></Link></li>
-                <li><Link to `/channels` className={`nav-btn`}><Megaphone size={18}/><span>Каналы</span></Link></li>
-              </ul>
-              <div className="sidebar-footer">
-                <button className="nav-btn" onClick={handleLogout}><LogOut size={18} /> <span>Выйти</span></button>
-                <div className="mini-profile">
-                   <img src={sessionUser.user_metadata?.avatar || "https://via.placeholder.com/40"} className="avatar-small" />
-                </div>
-                <span className="online-status">● Онлайн</span>
-              </div>
-            </nav>
-          ) : (
-            <div id="loginPage">
-               <div className="auth-card">
-                 <div className="auth-brand" style={{marginBottom:"20px", color: "var(--wine)", fontWeight: "bold", fontSize: "32px"}}>Привет, гость</div>
-                 <h3 className="title">Вход в Apple-BOOK</h3>
-                 <p className="desc">Используйте свой email для входа</p>
-                 <br/>
-                 <input type="email" placeholder="Email" className="wide" id="emailInput"/>
-                 <div className="tabs">
-                    <button className="tab active">Личная</button>
-                    <button className="tab">Партнёрский</button>
-                 </div>
-                 <button className="primary large-btn" onClick={handleLogin}><div className="log-btn-text">Войти</div></button>
-                 <div className="guard" style={{textAlign:"center", marginTop:"20px", fontSize:"11px", color: "var(--line)"}}>Подписываясь на влевы, вы соглашаетесь с <a href="#">Пользовательским соглашением</a> и <a href="#">Политикой конфиденциальности</a></div>
-               </div>
-            </div>
-          )}
+      maincol.appendChild(page);
 
-          {/* Рендер контента */}
-          {sessionUser && (
-            <div className="shell">
-              {/* Фильтр над контентом (Сверху) */}
-              <div className="rightcol">
-                 <div className="right-bar">
-                    <div className="input-box"><input type="text" placeholder="Поиск в apple-BOOK..." className="search-input" /></div>
-                    <div className="fav-filter">
-                       <button className="primary small-type">Избранное</button>
-                       <button className="secondary small-type">Новости</button>
-                    </div>
-                    <div className="create-post-btn">
-                       <button className="btn-post">Создать</button>
-                    </div>
-                    <ul className="chat-items">
-                        <li className="chat-contact active chat-contact-avatar"><img src="https://via.placeholder.com/30" /><div className="contact-name">Чат 1</div></li>
-                        <li className="chat-contact"><img src="https://via.placeholder.com/30" /><div className="contact-name">Чат 2</div></li>
-                    </ul>
-                 </div>
-              </div>
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "nav-btn";
+      button.dataset.page = item.id;
+      button.innerHTML = `${item.icon} ${item.title}`;
 
-              {/* Layout */}
-              <div className="layout">
-                  <div className="leftcol">
-                     <div className="panel">
-                      <div className="header-bar" style={{background: "var(--wine)", color: "white", padding: "16px", borderRadius: "5px", marginBottom: "10px"}}>
-                         <div className="header-left">
-                           <h2 className="post-title">Лента</h2>
-                         </div>
-                      </div>
-                      <div className="posts">
-                        <div className="post">
-                           <div className="post-header">
-                              <div className="post-avatar"><User size={20}/></div>
-                              <div className="post-info">
-                                 <strong className="post-author">Пользователь 1</strong>
-                                 <span className="post-date">Сегодня, 10:00</span>
-                              </div>
-                              <div className="post-actions">
-                                <button><MoreHorizontal size={18}/></button>
-                              </div>
-                           </div>
-                           <div className="post-body">
-                              Привет! Как тебе дизайн?
-                           </div>
-                        </div>
-                      </div>
-                     </div>
-                  
-                  </div>
-                  
-                  <div className="rightcol"> 
-                     <div className="created-panel">
-                       <div className="post">
-                          <div className="post-header">
-                             <div className="post-avatar"><User size={20}/></div>
-                             <div className="post-info">
-                                <strong className="post-author">Моя страница</strong>
-                                <span className="post-date">Сегодня, 09:30</span>
-                             </div>
-                             <div className="post-actions"><MoreHorizontal size={18}/></div>
-                           </div>
-                           <div className="post-body"> Texte de l'utilisateur... </div>
-                       </div>
-                     </div>
-                  </div>
-              </div>
-              </div>
-            )
-          )}
+      sidebar.querySelector(".nav")?.insertBefore(
+        button,
+        sidebar.querySelector('[data-page="profile"]')
+      );
 
-        </BrowserRouter>
-      </supabase-context.Provider>
-    </div>
-  );
-};
+      button.addEventListener("click", () => {
+        showExtraPage(item.id);
+        closeMenu();
+      });
+    }
 
-export default App;import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { 
-  Menu, X, Search, Users, MessageSquare, Bell, Home, 
-  MessageSquareMore, Phone, Video, LogOut, User, 
-  Image as ImageIcon, Mic, Send, MoreHorizontal, Share
-} from 'lucide-react';
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    function showExtraPage(id) {
+      document.querySelectorAll(".page").forEach(page => {
+        page.classList.add("hidden");
+      });
 
-const SUPABASE_URL = "https://tzkxujrjrhyqxgzytaex.supabase.co";
-const SUPABASE_KEY = "sb_publishable_BrNnF8XCshRm1NmEYvQphg_hcNIJhQV";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+      document.querySelectorAll(".nav-btn[data-page]").forEach(button => {
+        button.classList.toggle("active", button.dataset.page === id);
+      });
 
-// ... [Компоненты UI здесь] ...
+      document.getElementById("page-" + id)?.classList.remove("hidden");
+    }
 
-const App = () => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [mobileMenu, setMobileMenu] = useState(false);
-  const [sessionUser, setSessionUser] = useState(null);
+    // Закрываем мобильное меню после перехода
+    sidebar.querySelectorAll(".nav-btn[data-page]").forEach(button => {
+      if (["groups", "channels", "calls"].includes(button.dataset.page)) return;
 
-  // Авторизация
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSessionUser(session?.user);
-      if(session?.user) setUser(session.user);
+      button.addEventListener("click", closeMenu);
     });
-    
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setSessionUser(session?.user);
-      if(session?.user) setUser(session.user);
+
+    // Стартовая страница — чаты
+    let chatsOpened = false;
+
+    if (appView) {
+      const observer = new MutationObserver(() => {
+        if (
+          !chatsOpened &&
+          !appView.classList.contains("hidden")
+        ) {
+          chatsOpened = true;
+
+          setTimeout(() => {
+            const messagesButton = sidebar.querySelector(
+              '[data-page="messages"]'
+            );
+
+            if (messagesButton) messagesButton.click();
+          }, 500);
+        }
+
+        if (appView.classList.contains("hidden")) {
+          chatsOpened = false;
+          closeMenu();
+        }
+      });
+
+      observer.observe(appView, {
+        attributes: true,
+        attributeFilter: ["class"]
+      });
+    }
+
+    // Если пользователь уже авторизован
+    if (appView && !appView.classList.contains("hidden")) {
+      setTimeout(() => {
+        sidebar.querySelector('[data-page="messages"]')?.click();
+      }, 500);
+    }
+
+    // ESC закрывает меню
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeMenu();
     });
-  }, []);
+  }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSessionUser(null);
-    setUser(null);
-  };
-
-  return (
-    <div>
-      {/* Скрытые связи с Supabase для контекста */}
-      <supabase-context.Provider value={{user: sessionUser}}>
-        
-        <BrowserRouter>
-          {/* Верхняя панель */}
-          <header className="topbar">
-            <div className="brand">
-              apple-<span>BOOK</span>
-            </div>
-            {sessionUser ? (
-              <div className="top-user">
-                <img src={sessionUser.user_metadata?.avatar || "https://via.placeholder.com/40"} className="avatar-small" />
-                <span>{sessionUser.email || "User"}</span>
-              </div>
-            ) : null}
-            <button className="header-btn" onClick={() => setMobileMenu(true)}>
-               <Menu size={24} />
-            </button>
-          </header>
-
-          {/* Основное меню (Навигация) */}
-          {sessionUser ? (
-            <nav className="sidebar">
-              <button className="close-btn" onClick={() => setMobileMenu(false)}><X size={20}/></button>
-              <ul className="nav-list">
-                <li><Link to={`/feed`} className={`nav-btn active`}><Home size={18}/><span>Лента</span></Link></li>
-                <li><Link to={`/messages`} className={`nav-btn`}><MessageSquare size={18}/><span>Чаты</span></Link></li>
-                <li><Link to={`/friends`} className={`nav-btn`}><Users size={18}/><span>Друзья</span></Link></li>
-                <li><Link to={`/groups`} className={`nav-btn`}><Users2 size={18}/><span>Группы</span></Link></li>
-                <li><Link to `/channels` className={`nav-btn`}><Megaphone size={18}/><span>Каналы</span></Link></li>
-              </ul>
-              <div className="sidebar-footer">
-                <button className="nav-btn" onClick={handleLogout}><LogOut size={18} /> <span>Выйти</span></button>
-                <div className="mini-profile">
-                   <img src={sessionUser.user_metadata?.avatar || "https://via.placeholder.com/40"} className="avatar-small" />
-                </div>
-                <span className="online-status">● Онлайн</span>
-              </div>
-            </nav>
-          ) : (
-            <div id="loginPage">
-               <div className="auth-card">
-                 <div className="auth-brand" style={{marginBottom:"20px", color: "var(--wine)", fontWeight: "bold", fontSize: "32px"}}>Привет, гость</div>
-                 <h3 className="title">Вход в Apple-BOOK</h3>
-                 <p className="desc">Используйте свой email для входа</p>
-                 <br/>
-                 <input type="email" placeholder="Email" className="wide" id="emailInput"/>
-                 <div className="tabs">
-                    <button className="tab active">Личная</button>
-                    <button className="tab">Партнёрский</button>
-                 </div>
-                 <button className="primary large-btn" onClick={handleLogin}><div className="log-btn-text">Войти</div></button>
-                 <div className="guard" style={{textAlign:"center", marginTop:"20px", fontSize:"11px", color: "var(--line)"}}>Подписываясь на влевы, вы соглашаетесь с <a href="#">Пользовательским соглашением</a> и <a href="#">Политикой конфиденциальности</a></div>
-               </div>
-            </div>
-          )}
-
-          {/* Рендер контента */}
-          {sessionUser && (
-            <div className="shell">
-              {/* Фильтр над контентом (Сверху) */}
-              <div className="rightcol">
-                 <div className="right-bar">
-                    <div className="input-box"><input type="text" placeholder="Поиск в apple-BOOK..." className="search-input" /></div>
-                    <div className="fav-filter">
-                       <button className="primary small-type">Избранное</button>
-                       <button className="secondary small-type">Новости</button>
-                    </div>
-                    <div className="create-post-btn">
-                       <button className="btn-post">Создать</button>
-                    </div>
-                    <ul className="chat-items">
-                        <li className="chat-contact active chat-contact-avatar"><img src="https://via.placeholder.com/30" /><div className="contact-name">Чат 1</div></li>
-                        <li className="chat-contact"><img src="https://via.placeholder.com/30" /><div className="contact-name">Чат 2</div></li>
-                    </ul>
-                 </div>
-              </div>
-
-              {/* Layout */}
-              <div className="layout">
-                  <div className="leftcol">
-                     <div className="panel">
-                      <div className="header-bar" style={{background: "var(--wine)", color: "white", padding: "16px", borderRadius: "5px", marginBottom: "10px"}}>
-                         <div className="header-left">
-                           <h2 className="post-title">Лента</h2>
-                         </div>
-                      </div>
-                      <div className="posts">
-                        <div className="post">
-                           <div className="post-header">
-                              <div className="post-avatar"><User size={20}/></div>
-                              <div className="post-info">
-                                 <strong className="post-author">Пользователь 1</strong>
-                                 <span className="post-date">Сегодня, 10:00</span>
-                              </div>
-                              <div className="post-actions">
-                                <button><MoreHorizontal size={18}/></button>
-                              </div>
-                           </div>
-                           <div className="post-body">
-                              Привет! Как тебе дизайн?
-                           </div>
-                        </div>
-                      </div>
-                     </div>
-                  
-                  </div>
-                  
-                  <div className="rightcol"> 
-                     <div className="created-panel">
-                       <div className="post">
-                          <div className="post-header">
-                             <div className="post-avatar"><User size={20}/></div>
-                             <div className="post-info">
-                                <strong className="post-author">Моя страница</strong>
-                                <span className="post-date">Сегодня, 09:30</span>
-                             </div>
-                             <div className="post-actions"><MoreHorizontal size={18}/></div>
-                           </div>
-                           <div className="post-body"> Texte de l'utilisateur... </div>
-                       </div>
-                     </div>
-                  </div>
-              </div>
-              </div>
-            )
-          )}
-
-        </BrowserRouter>
-      </supabase-context.Provider>
-    </div>
-  );
-};
-
-export default App;
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
