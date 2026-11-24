@@ -3,30 +3,30 @@ import "./www/app.js";
 (() => {
   "use strict";
 
-  const STYLE = `
+  const css = `
     .apple-menu-button {
-      width: 44px;
-      height: 44px;
-      border: 1px solid var(--line, #ddd);
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
       border-radius: 12px;
-      background: var(--card, #fff);
+      background: var(--card);
       color: inherit;
       font-size: 23px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       flex-shrink: 0;
     }
 
     .apple-menu-overlay {
       position: fixed;
       inset: 0;
+      z-index: 999;
       background: rgba(0,0,0,.48);
-      z-index: 900;
       opacity: 0;
       visibility: hidden;
-      transition: .2s;
+      transition: opacity .2s, visibility .2s;
     }
 
     .apple-menu-overlay.visible {
@@ -39,131 +39,111 @@ import "./www/app.js";
     }
 
     .sidebar.apple-menu-open {
-      transform: translateX(0);
+      transform: translateX(0) !important;
       z-index: 1000;
     }
 
-    .apple-extra-page {
+    .apple-new-page {
       display: none;
     }
 
-    .apple-extra-page.active {
+    .apple-new-page:not(.hidden) {
       display: block;
     }
 
-    .apple-extra-page .panel {
+    .apple-new-page .panel {
       margin-bottom: 16px;
     }
 
-    .apple-extra-icon {
+    .apple-section-heading {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      margin-bottom: 18px;
+    }
+
+    .apple-section-icon {
       width: 48px;
       height: 48px;
       display: grid;
       place-items: center;
       border-radius: 14px;
-      background: rgba(100,27,43,.1);
-      font-size: 24px;
+      background: rgba(100,27,43,.12);
+      font-size: 25px;
     }
 
-    .apple-extra-card {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 16px;
-      border: 1px solid var(--line, #ddd);
+    .apple-section-heading h1 {
+      margin: 0;
+    }
+
+    .apple-section-heading p {
+      margin: 4px 0 0;
+    }
+
+    .apple-new-page .apple-feature-card {
+      padding: 17px;
+      border: 1px solid var(--line);
       border-radius: 14px;
       margin-top: 12px;
     }
 
-    .apple-extra-card h3 {
-      margin: 0 0 5px;
-    }
-
-    .apple-extra-card p {
-      margin: 0;
-    }
-
-    .apple-back-button {
-      display: none;
-    }
-
     @media(max-width: 850px) {
-      .apple-menu-button {
-        display: flex;
-      }
-
       .sidebar {
         position: fixed !important;
         top: 0;
         left: 0;
         bottom: 0;
-        width: min(310px, 85vw);
+        width: min(310px, 86vw);
         max-width: 310px;
         overflow-y: auto;
         transform: translateX(-110%);
         z-index: 1000;
-        background: var(--bg, #fff);
-        padding: 15px;
-        box-shadow: 12px 0 35px rgba(0,0,0,.16);
       }
 
       .sidebar.apple-menu-open {
-        transform: translateX(0);
-      }
-
-      .apple-back-button.visible {
-        display: inline-flex;
+        transform: translateX(0) !important;
       }
 
       .messages-layout {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: minmax(0, 1fr) !important;
       }
 
-      .messages-contacts {
-        width: 100%;
-      }
-
+      .messages-contacts,
       .chat-panel {
         min-width: 0;
-      }
-    }
-
-    @media(min-width: 851px) {
-      .apple-menu-button {
-        display: flex;
-      }
-
-      .sidebar.apple-menu-collapsed {
-        display: none;
+        width: 100%;
       }
     }
   `;
 
-  function init() {
+  function initializeNavigation() {
     if (document.getElementById("appleNavigationStyle")) return;
-
-    const style = document.createElement("style");
-    style.id = "appleNavigationStyle";
-    style.textContent = STYLE;
-    document.head.appendChild(style);
 
     const topbar = document.querySelector(".topbar");
     const sidebar = document.querySelector(".sidebar");
     const appView = document.getElementById("appView");
     const maincol = document.querySelector(".maincol");
+    const navigation = sidebar?.querySelector(".nav");
 
-    if (!topbar || !sidebar || !maincol) return;
+    if (!topbar || !sidebar || !appView || !maincol || !navigation) {
+      return;
+    }
 
-    // Кнопка меню
+    const style = document.createElement("style");
+    style.id = "appleNavigationStyle";
+    style.textContent = css;
+    document.head.appendChild(style);
+
+    // Кнопка гамбургер
     const menuButton = document.createElement("button");
     menuButton.type = "button";
     menuButton.className = "apple-menu-button";
-    menuButton.innerHTML = "☰";
+    menuButton.textContent = "☰";
     menuButton.setAttribute("aria-label", "Открыть меню");
 
     topbar.prepend(menuButton);
 
-    // Затемнение фона
+    // Затемнение экрана
     const overlay = document.createElement("div");
     overlay.className = "apple-menu-overlay";
     document.body.appendChild(overlay);
@@ -171,31 +151,38 @@ import "./www/app.js";
     function closeMenu() {
       sidebar.classList.remove("apple-menu-open");
       overlay.classList.remove("visible");
-      menuButton.innerHTML = "☰";
+      menuButton.textContent = "☰";
+      document.body.style.overflow = "";
     }
 
-    function toggleMenu() {
-      const opened = sidebar.classList.toggle("apple-menu-open");
-      overlay.classList.toggle("visible", opened);
-      menuButton.innerHTML = opened ? "✕" : "☰";
+    function openMenu() {
+      sidebar.classList.add("apple-menu-open");
+      overlay.classList.add("visible");
+      menuButton.textContent = "✕";
+      document.body.style.overflow = "hidden";
     }
 
-    menuButton.addEventListener("click", toggleMenu);
+    menuButton.addEventListener("click", () => {
+      sidebar.classList.contains("apple-menu-open")
+        ? closeMenu()
+        : openMenu();
+    });
+
     overlay.addEventListener("click", closeMenu);
 
-    // Дополнительные страницы
-    const extraPages = [
+    // Дополнительные разделы
+    const sections = [
       {
         id: "groups",
         icon: "👥",
         title: "Группы",
-        description: "Общение с несколькими участниками в одном пространстве."
+        description: "Общение с несколькими участниками."
       },
       {
         id: "channels",
         icon: "📢",
         title: "Каналы",
-        description: "Публичные и приватные сообщества и публикации."
+        description: "Публичные и приватные сообщества."
       },
       {
         id: "calls",
@@ -205,25 +192,33 @@ import "./www/app.js";
       }
     ];
 
-    for (const item of extraPages) {
+    const profileButton = navigation.querySelector(
+      '[data-page="profile"]'
+    );
+
+    sections.forEach(section => {
       const page = document.createElement("section");
-      page.id = "page-" + item.id;
-      page.className = "page apple-extra-page";
+
+      page.id = `page-${section.id}`;
+      page.className = "page hidden apple-new-page";
 
       page.innerHTML = `
         <div class="panel pad">
-          <div class="apple-extra-icon">${item.icon}</div>
-          <h1>${item.title}</h1>
-          <p class="muted">${item.description}</p>
-          <div class="apple-extra-card">
+          <div class="apple-section-heading">
+            <div class="apple-section-icon">${section.icon}</div>
             <div>
-              <h3>${item.title}</h3>
-              <p class="muted">
-                Интерфейс раздела подготовлен.
-                Для подключения полноценной работы необходима
-                интеграция с соответствующими таблицами Supabase.
-              </p>
+              <h1>${section.title}</h1>
+              <p class="muted">${section.description}</p>
             </div>
+          </div>
+
+          <div class="apple-feature-card">
+            <h3>${section.title}</h3>
+            <p class="muted">
+              Раздел подготовлен для подключения функциональности.
+              Реальные группы, каналы и звонки требуют отдельной
+              интеграции с базой данных и серверной частью.
+            </p>
           </div>
         </div>
       `;
@@ -233,87 +228,84 @@ import "./www/app.js";
       const button = document.createElement("button");
       button.type = "button";
       button.className = "nav-btn";
-      button.dataset.page = item.id;
-      button.innerHTML = `${item.icon} ${item.title}`;
+      button.dataset.page = section.id;
+      button.textContent = `${section.icon} ${section.title}`;
 
-      sidebar.querySelector(".nav")?.insertBefore(
-        button,
-        sidebar.querySelector('[data-page="profile"]')
-      );
+      navigation.insertBefore(button, profileButton);
 
       button.addEventListener("click", () => {
-        showExtraPage(item.id);
+        document.querySelectorAll(".page").forEach(item => {
+          item.classList.add("hidden");
+        });
+
+        document.querySelectorAll(".nav-btn[data-page]").forEach(item => {
+          item.classList.toggle(
+            "active",
+            item.dataset.page === section.id
+          );
+        });
+
+        page.classList.remove("hidden");
         closeMenu();
       });
-    }
+    });
 
-    function showExtraPage(id) {
-      document.querySelectorAll(".page").forEach(page => {
-        page.classList.add("hidden");
-      });
-
-      document.querySelectorAll(".nav-btn[data-page]").forEach(button => {
-        button.classList.toggle("active", button.dataset.page === id);
-      });
-
-      document.getElementById("page-" + id)?.classList.remove("hidden");
-    }
-
-    // Закрываем мобильное меню после перехода
-    sidebar.querySelectorAll(".nav-btn[data-page]").forEach(button => {
-      if (["groups", "channels", "calls"].includes(button.dataset.page)) return;
+    // Закрытие меню после выбора существующего раздела
+    navigation.querySelectorAll(".nav-btn[data-page]").forEach(button => {
+      if (["groups", "channels", "calls"].includes(button.dataset.page)) {
+        return;
+      }
 
       button.addEventListener("click", closeMenu);
     });
 
-    // Стартовая страница — чаты
-    let chatsOpened = false;
+    // Стартовая страница — сообщения
+    let initialPageOpened = false;
 
-    if (appView) {
-      const observer = new MutationObserver(() => {
-        if (
-          !chatsOpened &&
-          !appView.classList.contains("hidden")
-        ) {
-          chatsOpened = true;
+    function openInitialChatPage() {
+      if (initialPageOpened || appView.classList.contains("hidden")) {
+        return;
+      }
 
-          setTimeout(() => {
-            const messagesButton = sidebar.querySelector(
-              '[data-page="messages"]'
-            );
+      initialPageOpened = true;
 
-            if (messagesButton) messagesButton.click();
-          }, 500);
-        }
+      const messagesButton = navigation.querySelector(
+        '[data-page="messages"]'
+      );
 
-        if (appView.classList.contains("hidden")) {
-          chatsOpened = false;
-          closeMenu();
-        }
-      });
-
-      observer.observe(appView, {
-        attributes: true,
-        attributeFilter: ["class"]
-      });
+      messagesButton?.click();
     }
 
-    // Если пользователь уже авторизован
-    if (appView && !appView.classList.contains("hidden")) {
-      setTimeout(() => {
-        sidebar.querySelector('[data-page="messages"]')?.click();
-      }, 500);
+    const observer = new MutationObserver(() => {
+      if (appView.classList.contains("hidden")) {
+        initialPageOpened = false;
+        closeMenu();
+      } else {
+        openInitialChatPage();
+      }
+    });
+
+    observer.observe(appView, {
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+
+    if (!appView.classList.contains("hidden")) {
+      openInitialChatPage();
     }
 
-    // ESC закрывает меню
     document.addEventListener("keydown", event => {
       if (event.key === "Escape") closeMenu();
     });
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener(
+      "DOMContentLoaded",
+      initializeNavigation,
+      { once: true }
+    );
   } else {
-    init();
+    initializeNavigation();
   }
 })();
